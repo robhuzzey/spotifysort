@@ -3,48 +3,95 @@
 const request = require('superagent');
 const jsonp = require('superagent-jsonp');
 
-const client_id = '214aa492fc5142cda977c15cf3fb40c6';
-const redirect_uri = encodeURIComponent('http://localhost:8080');
+class Spotify {
+  constructor(clientId, accessToken, redirectUri) {
+    this._api = 'https://api.spotify.com/v1';
+    this._scopes = [
+      'user-library-read',
+      'user-library-modify',
+      'user-read-private',
+      'playlist-modify-public'
+    ];
+    this._clientId = clientId;
+    this._accessToken = accessToken;
+    this._redirectUri = redirectUri;
+    if(!accessToken) return this._authorize();
+  }
 
-const spotify = {};
+  _auth_get_request = (endpoint, params = {}, callback) => {
+    return request
+      .get(this._api + endpoint)
+      .query(params)
+      .set('Authorization', `Bearer ${this._accessToken}`)
+      .end(function(error, res) {
+        if (error || !res.body) return callback(error || 'missing body', null);
+        return callback(null, res.body);
+      });
+  }
 
-spotify.authorize = callback => {
-  const scopes = encodeURIComponent('user-library-read user-library-modify');
-  window.location = `https://accounts.spotify.com/authorize?client_id=${client_id}&scope=${scopes}&show_dialog=true&response_type=token&redirect_uri=${redirect_uri}`;
+  _auth_post_request = (endpoint, body = {}, callback) => {
+    return request
+      .post(this._api + endpoint)
+      .send(body)
+      .set('Authorization', `Bearer ${this._accessToken}`)
+      .set('Content-Type', 'application/json')
+      .end(function(error, res) {
+        if (error || !res.body) return callback(error || 'missing body', null);
+        return callback(null, res.body);
+      });
+  }
+
+  _authorize = () => {
+    const scopes = encodeURIComponent(this._scopes.join(' '));
+    window.location = `https://accounts.spotify.com/authorize?client_id=${this._clientId}&scope=${scopes}&show_dialog=true&response_type=token&redirect_uri=${this._redirectUri}`;
+    return;
+  }
+
+  getUsersTracks = callback => {
+    const endpoint = '/me/tracks';
+    return this._auth_get_request(endpoint, null, callback);
+  }
+
+  getAlbums = (ids, callback) => {
+    const endpoint = '/albums';
+    const query = {
+      ids: ids.join(',')
+    };
+    return this._auth_get_request(endpoint, query, callback);
+  }
+
+  getArtists = (ids, callback) => {
+    const endpoint = '/artists';
+    const query = {
+      ids: ids.join(',')
+    };
+    return this._auth_get_request(endpoint, query, callback);
+  }
+
+  getUser = callback => {
+    const endpoint = '/me';
+    return this._auth_get_request(endpoint, null, callback);
+  }
+
+  makePlaylist = (userId, name, callback) => {
+    const endpoint = `/users/${userId}/playlists`;
+    return this._auth_post_request(endpoint, {
+      name
+    }, callback);
+  }
+
+  addTracks = (userId, playlistId, trackIds, callback) => {
+    const endpoint = `/users/${userId}/playlists/${playlistId}/tracks`;
+    return this._auth_post_request(endpoint, {
+      uris: trackIds.map(id => { return `spotify:track:${id}` })
+    }, callback);
+  }
+
+  getPlaylist = (userId, playlistId, callback) => {
+    const endpoint = `/users/${userId}/playlists/${playlistId}`;
+    return this._auth_get_request(endpoint, null, callback);
+  }
+
 }
 
-spotify.getUsersTracks = (access_token, callback, url = 'https://api.spotify.com/v1/me/tracks') => {
-  return request
-    .get(url)
-    .set('Authorization', `Bearer ${access_token}`)
-    .end(function(error, res) {
-      if (error || !res.body) return callback(error || 'missing body', null);
-      return callback(null, res.body);
-    });
-}
-
-spotify.getAlbums = (access_token, ids, callback, url = 'https://api.spotify.com/v1/albums') => {
-  return request
-    .get(url)
-    .query({
-      ids
-    })
-    .end(function(error, res) {
-      if (error || !res.body) return callback(error || 'missing body', null);
-      return callback(null, res.body);
-    });
-}
-
-spotify.getArtists = (access_token, ids, callback, url = 'https://api.spotify.com/v1/artists') => {
-  return request
-    .get(url)
-    .query({
-      ids
-    })
-    .end(function(error, res) {
-      if (error || !res.body) return callback(error || 'missing body', null);
-      return callback(null, res.body);
-    });
-}
-
-export default spotify
+export default Spotify
