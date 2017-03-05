@@ -56,21 +56,25 @@ class Main extends React.Component {
       const albumIds = this.normalizeAlbumIds(tracks, this.state.albums);
       const artistIds = this.normalizeArtistIds(tracks, this.state.artists);
 
-      this.spotify.getAlbums(albumIds, (error, result) => {
-        if(error) return this.handleError(error);
-        const albums = result.albums;
-        this.setState({
-          albums: this.state.albums.concat(albums)
+      if(albumIds.length) {
+        this.spotify.getAlbums(albumIds, (error, result) => {
+          if(error) return this.handleError(error);
+          const albums = result.albums;
+          this.setState({
+            albums: this.state.albums.concat(albums)
+          });
         });
-      });
+      }
 
-      this.spotify.getArtists(artistIds, (error, result) => {
-        if(error) return this.handleError(error);
-        const artists = result.artists;
-        this.setState({
-          artists: this.state.artists.concat(artists)
+      if(artistIds.length) {
+        this.spotify.getArtists(artistIds, (error, result) => {
+          if(error) return this.handleError(error);
+          const artists = result.artists;
+          this.setState({
+            artists: this.state.artists.concat(artists)
+          });
         });
-      });
+      }
 
       this.setState({
         tracks: this.state.tracks.concat(tracks),
@@ -179,21 +183,19 @@ class Main extends React.Component {
         });
       });
       const genres = this.normalizeGenres(artists, track, album);
-      if(this.state.filteredBy && genres.indexOf(this.state.filteredBy) === -1) return {};
+      if(this.state.filteredBy && genres.indexOf(this.state.filteredBy) === -1) return null;
       return {
         track,
         album,
         artists,
         genres
       }
-    });
+    }).filter(result => result);
   }
 
   render() {
 
     const results = this.filterResults();
-
-    console.log("results", results);
 
     return (
       <div>
@@ -214,6 +216,8 @@ class Main extends React.Component {
           : 
           <button onClick={() => this.fetchUsersTracks()}>Load user tracks</button>
         }
+
+        <div>Track count: {results.length}</div>
         
         {this.state.error && <div>{this.state.error}</div>}
         
