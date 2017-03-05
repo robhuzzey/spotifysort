@@ -46,7 +46,7 @@ class Main extends React.Component {
   }
 
   componentDidMount() {
-    this.spotify = new Spotify(clientId, this.props.route.accessToken, redirectUri);
+    this.spotify = new Spotify(clientId, this.props.accessToken, redirectUri);
     if(this.spotify) {
       this.spotify.getUser((error, result) => {
         if(error) {

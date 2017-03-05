@@ -1,6 +1,5 @@
 import React from 'react'
 import { render } from 'react-dom'
-import { Router, Route, Link, browserHistory } from 'react-router'
 
 import Main from './components/Main.jsx'
 
@@ -22,9 +21,7 @@ const parseHash = hash => {
 (() => {
   const parsedHash = parseHash(hash);
   render((
-    <Router history={browserHistory}>
-      <Route path="/" component={Main} accessToken={parsedHash.access_token} />
-    </Router>
+    <Main accessToken={parsedHash.access_token} />
   ), document.getElementById('application'))
 })()
 
