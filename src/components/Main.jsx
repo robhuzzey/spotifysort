@@ -5,9 +5,12 @@ import Track from './Track.jsx'
 import Album from './Album.jsx'
 import Artist from './Artist.jsx'
 import AudioFeatures from './AudioFeatures.jsx'
+import TracksAccordion from './TracksAccordion.jsx'
 import SpotifyPlayer from './SpotifyPlayer.jsx'
 import Genre from './Genre.jsx'
 import User from './User.jsx'
+
+import { Accordion, Panel, ButtonGroup, Button, Badge, Col, Row, Grid } from 'react-bootstrap';
 
 const redirectUri = encodeURIComponent('http://localhost:8080');
 const clientId = '214aa492fc5142cda977c15cf3fb40c6';
@@ -21,10 +24,15 @@ class Main extends React.Component {
     this.resetFilter = this.resetFilter.bind(this);
     this.makePlaylist = this.makePlaylist.bind(this);
     this.filterResults = this.filterResults.bind(this);
+    this.filterResults2 = this.filterResults2.bind(this);
+    this.clearGenre = this.clearGenre.bind(this);
     this.state = {
       tracks: [],
       albums: [],
       artists: [],
+
+      filteredTracks: {},
+      
       audioFeatures: [],
       nextUserTrackUrl: null,
       error: null,
@@ -147,9 +155,12 @@ class Main extends React.Component {
   }
 
   filterTracksByGenre(genre) {
+    const filteredTracks = this.state.filteredTracks;
+    const tracks = this.filterResults2(genre);
+    filteredTracks[genre] = tracks;
     this.setState({
-      filteredBy: genre
-    })
+      filteredTracks
+    });
   }
 
   resetFilter() {
@@ -159,13 +170,13 @@ class Main extends React.Component {
     });
   }
 
-  makePlaylist() {
-    const playlistName = prompt('playlist name?', `Playlist: ${this.state.filteredBy}`);
+  makePlaylist(genre) {
+    const playlistName = prompt('playlist name?', `Playlist: ${genre}`);
     this.spotify.makePlaylist(this.state.userId, playlistName, (error, result) => {
       if(error) return this.handleError(error);
       const playlistId = result.id;
       
-      const filteredTracks = this.filterResults();
+      const filteredTracks = this.filterResults2(genre);
       const trackIds = filteredTracks.map(result => {
         if(result && result.track) {
           return result.track.id;
@@ -220,6 +231,38 @@ class Main extends React.Component {
     }).filter(result => result);
   }
 
+  filterResults2(genre) {
+    return this.state.tracks.map((track, i) => {
+      const audioFeatures = this.state.audioFeatures.find(features => features.id === track.id);
+      const album = this.state.albums.find(album => track.album.id === album.id);
+      const artists = track.artists.map(trackArtist => {
+        return this.state.artists.find(artist => {
+          return artist.id === trackArtist.id;
+        });
+      });
+      const genres = this.normalizeGenres(artists, track, album);
+      if(genres.indexOf(genre) === -1) return null;
+      return {
+        track,
+        album,
+        artists,
+        genres,
+        audioFeatures
+      }
+    }).filter(result => result);
+  }
+
+  clearGenre(genre) {
+
+    console.log(genre);
+
+    const filteredTracks = this.state.filteredTracks;
+    delete filteredTracks[genre];
+    this.setState({
+      filteredTracks
+    });
+  }
+
   render() {
 
     const results = this.filterResults();
@@ -234,66 +277,59 @@ class Main extends React.Component {
     }
 
     return (
-      <div>
-        <h1>Spotify tracks</h1>
+      <Grid>
+        <Row>
+          <Col xs={12} md={12}>
+            <h1>Spotify tracks testing the length of this title as it should be all the way across the page!</h1>
 
-        <User id={this.state.userId} avatarUrl={this.state.userImage} />
+            <User id={this.state.userId} avatarUrl={this.state.userImage} />
 
-        {this.state.filteredBy && 
-          <div>
-            <h2>FilteredBy: {this.state.filteredBy} <button onClick={this.resetFilter}>Reset</button></h2>
-            <div>
-              Make a new playlist: <button onClick={this.makePlaylist}>Yes!</button>
-            </div>
-          </div>
-        }
+            {this.state.nextUserTrackUrl ? 
+              <Button bsStyle={this.state.loading ? "warning" : "success"} disabled={this.state.loading ? true : false} onClick={this.fetchUsersTracks.bind(this, this.state.nextUserTrackUrl)}>{this.state.loading ? "Loading..." : "Load more"}</Button>
+              : 
+              <Button bsStyle="success" onClick={() => this.fetchUsersTracks()}>Load users tracks</Button>
+            }
 
-        {this.state.nextUserTrackUrl ? 
-          <button disabled={this.state.loading ? true : false} onClick={this.fetchUsersTracks.bind(this, this.state.nextUserTrackUrl)}>{this.state.loading ? "Loading..." : "Load more"}</button>
-          : 
-          <button onClick={() => this.fetchUsersTracks()}>Load user tracks</button>
-        }
+            <p>Tracks <Badge>{results.length}</Badge></p>
+            
+            {this.state.error && <div>{this.state.error}</div>}
+          </Col>
+        </Row>
 
-        <div>Track count: {results.length}</div>
-        
-        {this.state.error && <div>{this.state.error}</div>}
-        
-        {results && results.length &&
-          <div>
-            {results.map((result, i) => {
-              if(!Object.keys(result).length) return;
-              return (
-                <div key={i}>
+        <Row>
+          <Col xs={12} md={8}>
+            {results && results.length &&
+              <div>
+                {results.map((result, i) => {
+                  if(!Object.keys(result).length) return;
+                  return (
+                    <div key={i}>
+                      {result.track && <Track track={result.track} />}
+                      <div>
+                        {result.genres.map((genre, i) => {
+                          if(genre) {
+                            return <Genre genre={genre} filteredGenre={this.state.filteredBy} filterTracksByGenre={this.filterTracksByGenre} key={i} />
+                          }
+                        })}
+                      </div>
+                      <hr />
+                    </div>
+                  )
+                })}
+              </div>
+            }
+          </Col>
+          <Col xs={6} md={4}>
+            {this.state.filteredTracks &&
+              <TracksAccordion 
+                tracks={this.state.filteredTracks} 
+                makePlaylist={this.makePlaylist}
+                clearGenre={this.clearGenre} />
+            }
+          </Col>
+        </Row>
 
-                  <SpotifyPlayer uri={result.track.uri} width={600} height={100} />
-                  {result.audioFeatures && <AudioFeatures audioFeatures={result.audioFeatures} />}
-                  {/*}
-                  {result.track && <Track track={result.track} />}
-                  {result.album && <Album album={result.album} />}
-                  <div>
-                    {result.artists.map((artist, i) => {
-                      if(artist) {
-                        return <Artist artist={artist} key={i} />
-                      }
-                    })}
-                  </div>
-                  */}
-                  <div>
-                    {result.genres.map((genre, i) => {
-                      if(genre) {
-                        return <Genre genre={genre} filteredGenre={this.state.filteredBy} filterTracksByGenre={this.filterTracksByGenre} key={i} />
-                      }
-                    })}
-                  </div>
-                  <hr />
-                </div>
-              )
-            })}
-          </div>
-        }
-
-
-      </div>
+      </Grid>
     )
   }
 }
