@@ -4,6 +4,7 @@ import Spotify from '../lib/spotify'
 import Track from './Track.jsx'
 import Album from './Album.jsx'
 import Artist from './Artist.jsx'
+import AudioFeatures from './AudioFeatures.jsx'
 import SpotifyPlayer from './SpotifyPlayer.jsx'
 import Genre from './Genre.jsx'
 import User from './User.jsx'
@@ -24,6 +25,7 @@ class Main extends React.Component {
       tracks: [],
       albums: [],
       artists: [],
+      audioFeatures: [],
       nextUserTrackUrl: null,
       error: null,
       filteredBy: null,
@@ -60,6 +62,16 @@ class Main extends React.Component {
       const tracks = result.items.map(item => {
         return item.track;
       });
+
+      if(tracks.length) {
+        this.spotify.getAudioFeatures(tracks.map(track => track.id), (error, result) => {
+          console.log("audio features", result);
+          if(error) return this.handleError(error);
+          this.setState({
+            audioFeatures: this.state.audioFeatures.concat(result.audio_features)
+          });
+        });
+      }
 
       const albumIds = this.normalizeAlbumIds(tracks, this.state.albums);
       const artistIds = this.normalizeArtistIds(tracks, this.state.artists);
@@ -189,6 +201,7 @@ class Main extends React.Component {
 
   filterResults() {
     return this.state.tracks.map((track, i) => {
+      const audioFeatures = this.state.audioFeatures.find(features => features.id === track.id);
       const album = this.state.albums.find(album => track.album.id === album.id);
       const artists = track.artists.map(trackArtist => {
         return this.state.artists.find(artist => {
@@ -201,7 +214,8 @@ class Main extends React.Component {
         track,
         album,
         artists,
-        genres
+        genres,
+        audioFeatures
       }
     }).filter(result => result);
   }
@@ -252,6 +266,7 @@ class Main extends React.Component {
                 <div key={i}>
 
                   <SpotifyPlayer uri={result.track.uri} width={600} height={100} />
+                  {result.audioFeatures && <AudioFeatures audioFeatures={result.audioFeatures} />}
                   {/*}
                   {result.track && <Track track={result.track} />}
                   {result.album && <Album album={result.album} />}

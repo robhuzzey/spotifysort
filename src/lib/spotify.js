@@ -92,6 +92,14 @@ class Spotify {
     return this._auth_get_request(endpoint, null, callback);
   }
 
+  getAudioFeatures = (ids, callback) => {
+    const endpoint = '/audio-features';
+    const query = {
+      ids: ids.join(',')
+    };
+    return this._auth_get_request(endpoint, query, callback);
+  }
+
 }
 
 export default Spotify
