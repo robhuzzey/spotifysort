@@ -315,6 +315,7 @@ class Main extends React.Component {
                           }
                         })}
                       </div>
+                      {result.audioFeatures && <AudioFeatures audioFeatures={result.audioFeatures} />}
                       <hr />
                     </div>
                   )
