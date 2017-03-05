@@ -4,6 +4,7 @@ import Spotify from '../lib/spotify'
 import Track from './Track.jsx'
 import Album from './Album.jsx'
 import Artist from './Artist.jsx'
+import SpotifyPlayer from './SpotifyPlayer.jsx'
 import Genre from './Genre.jsx'
 import User from './User.jsx'
 
@@ -29,7 +30,8 @@ class Main extends React.Component {
       userId: null,
       userImage: null,
       trackLimit: 20,
-      trackOffset: 0
+      trackOffset: 0,
+      loading: false
     }
   }
 
@@ -37,6 +39,9 @@ class Main extends React.Component {
     this.spotify = new Spotify(clientId, this.props.route.accessToken, redirectUri);
     if(this.spotify) {
       this.spotify.getUser((error, result) => {
+        if(error) {
+          return this.spotify.authorize();
+        }
         this.setState({
           userId: result.id,
           userImage: (result.images[0] || {}).url
@@ -46,6 +51,9 @@ class Main extends React.Component {
   }
 
   fetchUsersTracks(nextUrl) {
+    this.setState({
+      loading: true
+    });
     this.spotify.getUsersTracks(this.state.trackLimit, this.state.trackOffset, (error, result) => {
 
       if(error) return this.handleError(error);
@@ -79,7 +87,8 @@ class Main extends React.Component {
       this.setState({
         tracks: this.state.tracks.concat(tracks),
         nextUserTrackUrl: result.next,
-        trackOffset: this.state.trackOffset + this.state.trackLimit
+        trackOffset: this.state.trackOffset + this.state.trackLimit,
+        loading: false
       })
     }, nextUrl);
   }
@@ -161,6 +170,10 @@ class Main extends React.Component {
         this.spotify.addTracks(this.state.userId, playlistId, filteredTrackIds.slice(i, i+batch), (error, result) => {
           if(error) return this.handleError(error);
           this.spotify.getPlaylist(this.state.userId, playlistId, (error, result) => {
+            console.log('playlist', result);
+            this.setState({
+              playListURI: result.uri
+            });
             if(error) return this.handleError(error);
           });
         });
@@ -197,6 +210,15 @@ class Main extends React.Component {
 
     const results = this.filterResults();
 
+    if(this.state.playListURI) {
+      return (
+        <div>
+          <h1>Playlist created</h1>
+          <SpotifyPlayer uri={this.state.playListURI} width={200} height={1000} />
+        </div>
+      )
+    }
+
     return (
       <div>
         <h1>Spotify tracks</h1>
@@ -211,8 +233,9 @@ class Main extends React.Component {
             </div>
           </div>
         }
+
         {this.state.nextUserTrackUrl ? 
-          <button onClick={this.fetchUsersTracks.bind(this, this.state.nextUserTrackUrl)}>Load more</button>
+          <button disabled={this.state.loading ? true : false} onClick={this.fetchUsersTracks.bind(this, this.state.nextUserTrackUrl)}>{this.state.loading ? "Loading..." : "Load more"}</button>
           : 
           <button onClick={() => this.fetchUsersTracks()}>Load user tracks</button>
         }
@@ -226,7 +249,10 @@ class Main extends React.Component {
             {results.map((result, i) => {
               if(!Object.keys(result).length) return;
               return (
-                <div key={i} >
+                <div key={i}>
+
+                  <SpotifyPlayer uri={result.track.uri} width={600} height={100} />
+                  {/*}
                   {result.track && <Track track={result.track} />}
                   {result.album && <Album album={result.album} />}
                   <div>
@@ -236,6 +262,7 @@ class Main extends React.Component {
                       }
                     })}
                   </div>
+                  */}
                   <div>
                     {result.genres.map((genre, i) => {
                       if(genre) {
@@ -243,6 +270,7 @@ class Main extends React.Component {
                       }
                     })}
                   </div>
+                  <hr />
                 </div>
               )
             })}

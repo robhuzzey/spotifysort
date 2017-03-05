@@ -15,7 +15,7 @@ class Spotify {
     this._clientId = clientId;
     this._accessToken = accessToken;
     this._redirectUri = redirectUri;
-    if(!accessToken) return this._authorize();
+    if(!accessToken) return this.authorize();
   }
 
   _auth_get_request = (endpoint, params = {}, callback) => {
@@ -41,7 +41,7 @@ class Spotify {
       });
   }
 
-  _authorize = () => {
+  authorize = () => {
     const scopes = encodeURIComponent(this._scopes.join(' '));
     window.location = `https://accounts.spotify.com/authorize?client_id=${this._clientId}&scope=${scopes}&show_dialog=true&response_type=token&redirect_uri=${this._redirectUri}`;
     return;
