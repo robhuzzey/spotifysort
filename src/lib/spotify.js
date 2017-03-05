@@ -47,9 +47,9 @@ class Spotify {
     return;
   }
 
-  getUsersTracks = callback => {
+  getUsersTracks = (limit = 20, offset = 0, callback) => {
     const endpoint = '/me/tracks';
-    return this._auth_get_request(endpoint, null, callback);
+    return this._auth_get_request(endpoint, {limit, offset}, callback);
   }
 
   getAlbums = (ids, callback) => {

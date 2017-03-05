@@ -1,9 +1,11 @@
 import React from 'react'
 
 const Track = props => {
+  // console.log('props.track', props.track);
+  const albumImageUrl = props.track.album && props.track.album.images && (props.track.album.images[2] || props.track.album.images[1] || props.track.album.images[0] || {}).url;
   return (
     <div>
-      {props.album && props.album.images && props.album.images.url && <img src={props.album.images.url} />} {props.track.name}
+      {albumImageUrl && <img src={albumImageUrl} />} {props.track.name}
     </div>
   )
 }
