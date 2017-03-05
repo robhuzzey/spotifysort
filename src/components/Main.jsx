@@ -12,7 +12,7 @@ import User from './User.jsx'
 
 import { Accordion, Panel, ButtonGroup, Button, Badge, Col, Row, Grid } from 'react-bootstrap';
 
-const redirectUri = encodeURIComponent('http://localhost:8080');
+const redirectUri = encodeURIComponent('http://www.robhuzzey.co.uk/spotifysort/');
 const clientId = '214aa492fc5142cda977c15cf3fb40c6';
 
 class Main extends React.Component {
