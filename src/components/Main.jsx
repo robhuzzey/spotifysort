@@ -280,7 +280,10 @@ class Main extends React.Component {
       <Grid>
         <Row>
           <Col xs={12} md={12}>
-            <h1>Spotify tracks testing the length of this title as it should be all the way across the page!</h1>
+            <h1>Spotify Genre playlist maker</h1>
+            <p>This is a work in progress but the idea is to allow you to load in your latest songs, choose a genre & then create a playlist based off that list.</p>
+
+            <p>Contact me on twitter if you want more info: <a href="https://twitter.com/theHuzz">@theHuzz</a></p>
 
             <User id={this.state.userId} avatarUrl={this.state.userImage} />
 
@@ -298,7 +301,7 @@ class Main extends React.Component {
 
         <Row>
           <Col xs={12} md={8}>
-            {results && results.length &&
+            {results && (results.length > 0) &&
               <div>
                 {results.map((result, i) => {
                   if(!Object.keys(result).length) return;
