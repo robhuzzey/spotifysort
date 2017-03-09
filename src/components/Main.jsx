@@ -47,7 +47,7 @@ class Main extends React.Component {
       userImage: null,
       trackLimit: 20,
       trackOffset: 0,
-      loading: false
+      status: null
     }
   }
 
@@ -67,6 +67,10 @@ class Main extends React.Component {
   }
 
   getAllTracks(trackLimit = this.state.trackLimit, trackOffset = this.state.trackOffset) {
+    this.setState({
+      status: 'fetchingTracks'
+    });
+
     this.spotify.getUsersTracks(this.state.trackLimit, this.state.trackOffset, (error, result) => {
 
       if(error) return this.handleError(error);
@@ -91,7 +95,8 @@ class Main extends React.Component {
           albumIds,
           artistIds,
           totalAlbums: albumIds.length,
-          totalArtists: artistIds.length
+          totalArtists: artistIds.length,
+          status: 'analyzingTracks'
         });
         this.getAllAlbums(albumIds);
         this.getAllArtists(artistIds);
@@ -127,10 +132,6 @@ class Main extends React.Component {
       });
     }
   }
-
-
-
-
 
   normalizeAlbumIds(tracks) {
     return tracks.map(track => { 
@@ -262,7 +263,15 @@ class Main extends React.Component {
     const tracksLoaded = this.state.tracks.length > 0 && this.state.tracks.length === this.state.totalTracks;
     const albumsLoaded = this.state.albums.length === this.state.totalAlbums;
     const artistsLoaded = this.state.artists.length === this.state.totalArtists;
-    return (tracksLoaded && albumsLoaded && artistsLoaded);
+    if(tracksLoaded && albumsLoaded && artistsLoaded && this.state.status !== 'tracksLoaded') {
+      this.setState({
+        status: 'tracksLoaded'
+      });
+    }
+  }
+
+  componentDidUpdate() {
+    this.tracksLoaded();
   }
 
   render() {
@@ -272,9 +281,16 @@ class Main extends React.Component {
         <div>
           <h1>Playlist created</h1>
           <SpotifyPlayer uri={this.state.playListURI} width={200} height={1000} />
+          <Button onClick={() => {
+            this.setState({
+              playListURI: null
+            })
+          }}>Start again?</Button>
         </div>
       )
     }
+
+
 
     return (
       <Grid>
@@ -287,17 +303,28 @@ class Main extends React.Component {
 
             <User id={this.state.userId} avatarUrl={this.state.userImage} />
 
-            {!this.tracksLoaded() && <Button bsStyle="success" onClick={this.getAllTracks}>Get ALL tracks</Button>}
+            {this.state.status === null && <Button bsStyle="success" onClick={this.getAllTracks}>Get ALL tracks</Button>}
 
-            <div>Tracks: <LoadingBar current={this.state.tracks.length} total={this.state.totalTracks} /></div>
-            <div>Albums: <LoadingBar verb="Analyzing" current={this.state.albums.length} total={this.state.totalAlbums} /></div>
-            <div>Artists: <LoadingBar verb="Analyzing" current={this.state.artists.length} total={this.state.totalArtists} /></div>
+            {this.state.status === 'fetchingTracks' &&
+              <div>
+                <h2>Getting tracks...</h2>
+                <LoadingBar current={this.state.tracks.length} total={this.state.totalTracks} />
+              </div>
+            }
+            
+            {this.state.status === 'analyzingTracks' &&
+              <div>
+                <h2>Analyzing tracks</h2>
+                <div>Albums: <LoadingBar verb="Analyzing" current={this.state.albums.length} total={this.state.totalAlbums} /></div>
+                <div>Artists: <LoadingBar verb="Analyzing" current={this.state.artists.length} total={this.state.totalArtists} /></div>
+              </div>
+            }
             
             {this.state.error && <div>{this.state.error}</div>}
           </Col>
         </Row>
 
-        {this.tracksLoaded() &&
+        {this.state.status === 'tracksLoaded' &&
           <Row>
             <Col xs={12} md={12}>
               <div>
