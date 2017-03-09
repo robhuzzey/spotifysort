@@ -26,7 +26,7 @@ class TracksAccordion extends React.Component {
           const iconType = (this.state.activeKey === i) ? 'menu-up' : 'menu-down';
           const header = <span>{genre} <Badge>{this.props.tracks[genre].length}</Badge> <Glyphicon glyph={iconType} className="pull-right" /></span>;
           return (
-            <Panel header={header} eventKey={i}>
+            <Panel header={header} eventKey={i} key={i}>
               <ButtonToolbar>
                 <ButtonGroup>
                   <Button onClick={this.props.makePlaylist.bind(this, genre)}><Glyphicon glyph="save" /> Save Playlist</Button>
@@ -38,6 +38,7 @@ class TracksAccordion extends React.Component {
 
               <div>
                 {this.props.tracks[genre].map((result, i) => {
+                  console.log('result', result);
                   if(!Object.keys(result).length) return;
                   return (
                     <SpotifyPlayer uri={result.track.uri} height={100} key={i} />

@@ -9,6 +9,7 @@ import TracksAccordion from './TracksAccordion.jsx'
 import SpotifyPlayer from './SpotifyPlayer.jsx'
 import Genre from './Genre.jsx'
 import User from './User.jsx'
+import LoadingBar from './LoadingBar.jsx'
 
 import { Accordion, Panel, ButtonGroup, Button, Badge, Col, Row, Grid } from 'react-bootstrap';
 
@@ -19,17 +20,22 @@ class Main extends React.Component {
 
   constructor(props) {
     super(props);
-    this.fetchUsersTracks = this.fetchUsersTracks.bind(this);
     this.filterTracksByGenre = this.filterTracksByGenre.bind(this);
     this.resetFilter = this.resetFilter.bind(this);
     this.makePlaylist = this.makePlaylist.bind(this);
     this.filterResults = this.filterResults.bind(this);
-    this.filterResults2 = this.filterResults2.bind(this);
     this.clearGenre = this.clearGenre.bind(this);
+    this.getAllTracks = this.getAllTracks.bind(this);
+    this.tracksLoaded = this.tracksLoaded.bind(this);
     this.state = {
+      totalTracks: 0,
+      totalArtists: 0,
+      totalAlbums: 0,
       tracks: [],
       albums: [],
       artists: [],
+      albumIds: [],
+      artistIds: [],
 
       filteredTracks: {},
       
@@ -60,10 +66,7 @@ class Main extends React.Component {
     }
   }
 
-  fetchUsersTracks(nextUrl) {
-    this.setState({
-      loading: true
-    });
+  getAllTracks(trackLimit = this.state.trackLimit, trackOffset = this.state.trackOffset) {
     this.spotify.getUsersTracks(this.state.trackLimit, this.state.trackOffset, (error, result) => {
 
       if(error) return this.handleError(error);
@@ -71,65 +74,77 @@ class Main extends React.Component {
         return item.track;
       });
 
-      if(tracks.length) {
-        this.spotify.getAudioFeatures(tracks.map(track => track.id), (error, result) => {
-          console.log("audio features", result);
-          if(error) return this.handleError(error);
-          this.setState({
-            audioFeatures: this.state.audioFeatures.concat(result.audio_features)
-          });
-        });
-      }
-
-      const albumIds = this.normalizeAlbumIds(tracks, this.state.albums);
-      const artistIds = this.normalizeArtistIds(tracks, this.state.artists);
-
-      if(albumIds.length) {
-        this.spotify.getAlbums(albumIds, (error, result) => {
-          if(error) return this.handleError(error);
-          const albums = result.albums;
-          this.setState({
-            albums: this.state.albums.concat(albums)
-          });
-        });
-      }
-
-      if(artistIds.length) {
-        this.spotify.getArtists(artistIds, (error, result) => {
-          if(error) return this.handleError(error);
-          const artists = result.artists;
-          this.setState({
-            artists: this.state.artists.concat(artists)
-          });
-        });
-      }
-
+      const modifiedTrackOffset = this.state.trackOffset + this.state.trackLimit
       this.setState({
         tracks: this.state.tracks.concat(tracks),
         nextUserTrackUrl: result.next,
-        trackOffset: this.state.trackOffset + this.state.trackLimit,
-        loading: false
-      })
-    }, nextUrl);
-  }
+        trackOffset: modifiedTrackOffset,
+        totalTracks: result.total
+      });
 
-  normalizeAlbumIds(tracks, albums) {
-    const albumIds = [];
-    const existingAlbumIds = albums.map(album => { return album.id; });
-    tracks.map(track => {
-      if(existingAlbumIds.indexOf(track.album.id) === -1) {
-        albumIds.push(track.album.id);
+      if(result.next) {
+        this.getAllTracks(this.state.trackLimit, trackOffset);
+      } else {
+        const albumIds = this.normalizeAlbumIds(this.state.tracks);
+        const artistIds = this.normalizeArtistIds(this.state.tracks);
+        this.setState({
+          albumIds,
+          artistIds,
+          totalAlbums: albumIds.length,
+          totalArtists: artistIds.length
+        });
+        this.getAllAlbums(albumIds);
+        this.getAllArtists(artistIds);
       }
     });
-    return albumIds;
   }
 
-  normalizeArtistIds(tracks, artists) {
+  getAllAlbums(ids, start = 0, limit = 20) {
+    const albumIds = ids.slice(start, start + limit);
+    if(albumIds.length) {
+      this.spotify.getAlbums(albumIds, (error, result) => {
+        if(error) return this.handleError(error);
+        const albums = result.albums;
+        this.setState({
+          albums: this.state.albums.concat(albums)
+        });
+        this.getAllAlbums(ids, start + limit)
+      });
+    }
+  }
+
+  getAllArtists(ids, start = 0, limit = 20) {
+    const artistIds = ids.slice(start, start + limit);
+
+    if(artistIds.length) {
+      this.spotify.getArtists(artistIds, (error, result) => {
+        if(error) return this.handleError(error);
+        const artists = result.artists;
+        this.setState({
+          artists: this.state.artists.concat(artists)
+        });
+        this.getAllArtists(ids, start + limit)
+      });
+    }
+  }
+
+
+
+
+
+  normalizeAlbumIds(tracks) {
+    return tracks.map(track => { 
+      return track.album.id;
+    }).filter((elem, pos, arr) => {
+      return arr.indexOf(elem) == pos;
+    });
+  }
+
+  normalizeArtistIds(tracks) {
     const artistIds = [];
-    const existingArtistIds = artists.map(artist => { return artist.id; });
-    tracks.map(track => {
+    tracks.map(track => { 
       track.artists.map(artist => {
-        if(existingArtistIds.indexOf(artist.id) === -1) {
+        if(artistIds.indexOf(artist.id) === -1) {
           artistIds.push(artist.id);
         }
       })
@@ -137,16 +152,19 @@ class Main extends React.Component {
     return artistIds;
   }
 
-  normalizeGenres(artists, track, album) {
+  normalizeGenres(artists, tracks, albums) {
     const genres = [];
     artists && artists.map(artist => {
-      if(artist) {
-        genres.push(artist.genres);
-      }
+      artist && genres.push(artist.genres);
     });
 
-    track && genres.push(track.genres);
-    album && genres.push(album.genres);
+    tracks && tracks.map(track => {
+      track && genres.push(track.genres);
+    });
+
+    albums && albums.map(album => {
+      album && genres.push(album.genres);
+    });
 
     // Merge all the arrays together & stip out duplicates.
     return [].concat.apply([], genres).filter((elem, pos, arr) => {
@@ -156,7 +174,7 @@ class Main extends React.Component {
 
   filterTracksByGenre(genre) {
     const filteredTracks = this.state.filteredTracks;
-    const tracks = this.filterResults2(genre);
+    const tracks = this.filterResults(genre);
     filteredTracks[genre] = tracks;
     this.setState({
       filteredTracks
@@ -170,13 +188,14 @@ class Main extends React.Component {
     });
   }
 
+  // Probably don't need to filter results here again? Can we use the object already filtered?
   makePlaylist(genre) {
     const playlistName = prompt('playlist name?', `Playlist: ${genre}`);
     this.spotify.makePlaylist(this.state.userId, playlistName, (error, result) => {
       if(error) return this.handleError(error);
       const playlistId = result.id;
       
-      const filteredTracks = this.filterResults2(genre);
+      const filteredTracks = this.filterResults(genre);
       const trackIds = filteredTracks.map(result => {
         if(result && result.track) {
           return result.track.id;
@@ -210,7 +229,7 @@ class Main extends React.Component {
     });
   }
 
-  filterResults() {
+  filterResults(genre) {
     return this.state.tracks.map((track, i) => {
       const audioFeatures = this.state.audioFeatures.find(features => features.id === track.id);
       const album = this.state.albums.find(album => track.album.id === album.id);
@@ -219,28 +238,7 @@ class Main extends React.Component {
           return artist.id === trackArtist.id;
         });
       });
-      const genres = this.normalizeGenres(artists, track, album);
-      if(this.state.filteredBy && genres.indexOf(this.state.filteredBy) === -1) return null;
-      return {
-        track,
-        album,
-        artists,
-        genres,
-        audioFeatures
-      }
-    }).filter(result => result);
-  }
-
-  filterResults2(genre) {
-    return this.state.tracks.map((track, i) => {
-      const audioFeatures = this.state.audioFeatures.find(features => features.id === track.id);
-      const album = this.state.albums.find(album => track.album.id === album.id);
-      const artists = track.artists.map(trackArtist => {
-        return this.state.artists.find(artist => {
-          return artist.id === trackArtist.id;
-        });
-      });
-      const genres = this.normalizeGenres(artists, track, album);
+      const genres = this.normalizeGenres(artists, [track], [album]);
       if(genres.indexOf(genre) === -1) return null;
       return {
         track,
@@ -253,9 +251,6 @@ class Main extends React.Component {
   }
 
   clearGenre(genre) {
-
-    console.log(genre);
-
     const filteredTracks = this.state.filteredTracks;
     delete filteredTracks[genre];
     this.setState({
@@ -263,9 +258,14 @@ class Main extends React.Component {
     });
   }
 
-  render() {
+  tracksLoaded() {
+    const tracksLoaded = this.state.tracks.length > 0 && this.state.tracks.length === this.state.totalTracks;
+    const albumsLoaded = this.state.albums.length === this.state.totalAlbums;
+    const artistsLoaded = this.state.artists.length === this.state.totalArtists;
+    return (tracksLoaded && albumsLoaded && artistsLoaded);
+  }
 
-    const results = this.filterResults();
+  render() {
 
     if(this.state.playListURI) {
       return (
@@ -287,18 +287,44 @@ class Main extends React.Component {
 
             <User id={this.state.userId} avatarUrl={this.state.userImage} />
 
-            {this.state.nextUserTrackUrl ? 
-              <Button bsStyle={this.state.loading ? "warning" : "success"} disabled={this.state.loading ? true : false} onClick={this.fetchUsersTracks.bind(this, this.state.nextUserTrackUrl)}>{this.state.loading ? "Loading..." : "Load more"}</Button>
-              : 
-              <Button bsStyle="success" onClick={() => this.fetchUsersTracks()}>Load users tracks</Button>
-            }
+            {!this.tracksLoaded() && <Button bsStyle="success" onClick={this.getAllTracks}>Get ALL tracks</Button>}
 
-            <p>Tracks <Badge>{results.length}</Badge></p>
+            <div>Tracks: <LoadingBar current={this.state.tracks.length} total={this.state.totalTracks} /></div>
+            <div>Albums: <LoadingBar verb="Analyzing" current={this.state.albums.length} total={this.state.totalAlbums} /></div>
+            <div>Artists: <LoadingBar verb="Analyzing" current={this.state.artists.length} total={this.state.totalArtists} /></div>
             
             {this.state.error && <div>{this.state.error}</div>}
           </Col>
         </Row>
 
+        {this.tracksLoaded() &&
+          <Row>
+            <Col xs={12} md={12}>
+              <div>
+                <h2>Genres</h2>
+                {this.normalizeGenres(this.state.artists, this.state.tracks, this.state.albums).map((genre, i) => {
+                  if(genre) {
+                    const count = this.filterResults(genre).length;
+                    return <Genre genre={genre} filteredGenre={this.state.filteredBy} filterTracksByGenre={this.filterTracksByGenre} count={count} key={i} />
+                  }
+                })}
+              </div>
+            </Col>
+          </Row>
+        }
+
+        <Row>
+          <Col xs={12} md={12}>
+            {this.state.filteredTracks &&
+              <TracksAccordion 
+                tracks={this.state.filteredTracks} 
+                makePlaylist={this.makePlaylist}
+                clearGenre={this.clearGenre} />
+            }
+          </Col>
+        </Row>
+
+        {/*
         <Row>
           <Col xs={12} md={8}>
             {results && (results.length > 0) &&
@@ -332,6 +358,7 @@ class Main extends React.Component {
             }
           </Col>
         </Row>
+      */}
 
       </Grid>
     )

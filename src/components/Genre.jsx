@@ -1,14 +1,14 @@
 import React from 'react'
 
-import { Badge } from 'react-bootstrap';
+import { Badge, Button } from 'react-bootstrap';
 
 const Genre = props => {
   return (
-    <Badge onClick={e => {
+    <Button bsStyle="info" onClick={e => {
       e.preventDefault();
       e.stopPropagation();
       props.filterTracksByGenre(props.genre);
-    }}>{props.genre}</Badge>
+    }}>{props.genre} <Badge>{props.count}</Badge></Button>
   )
 }
 
