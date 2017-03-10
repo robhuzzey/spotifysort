@@ -100,6 +100,17 @@ class Spotify {
     return this._auth_get_request(endpoint, query, callback);
   }
 
+  getTrackRecommendations = (seedTracks, callback) => {
+    const endpoint = '/recommendations';
+    const query = {
+      seed_tracks: seedTracks.join(','),
+      // target_energy: 1.0,
+      // target_tempo: 200,
+      limit: 100
+    };
+    return this._auth_get_request(endpoint, query, callback);
+  }
+
 }
 
 export default Spotify
