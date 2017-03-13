@@ -19,6 +19,44 @@ import { Accordion, Glyphicon, Panel, ButtonToolbar, ButtonGroup, Button, Badge,
 const redirectUri = encodeURIComponent('http://www.robhuzzey.co.uk/spotifysort/');
 const clientId = '214aa492fc5142cda977c15cf3fb40c6';
 
+
+const MusicPlayer = props => {
+  return (
+    <div>
+      <button onClick={props.pause.bind(this)}>Pause</button>
+      {props.tracks.map((track, i) => {
+        return (
+          <Grid key={i} onClick={props.play.bind(this, track.url)}>
+            <Row>
+              <Col xs={3} md={3}>
+                <img src={track.img} />
+              </Col>
+              <Col xs={9} md={9}>
+                <Grid>
+                  <Row>
+                    <Col xs={12} md={12}>{track.name}</Col>
+                  </Row>
+                  {track.artists &&
+                    <Row>
+                      <Col xs={12} md={12}>
+                        {track.artists.map(artist => {
+                          return <span>{artist.name}</span>
+                        })}
+                      </Col>
+                    </Row>
+                  }
+                </Grid>
+              </Col>
+            </Row>
+          </Grid>
+        )
+      })}
+    </div>
+  )
+}
+
+
+
 class Main extends React.Component {
 
   constructor(props) {
@@ -31,6 +69,9 @@ class Main extends React.Component {
     this.getAllTracks = this.getAllTracks.bind(this);
     this.tracksLoaded = this.tracksLoaded.bind(this);
     this.getRecommendations = this.getRecommendations.bind(this);
+
+    this.play = this.play.bind(this);
+    this.pause = this.pause.bind(this);
     this.state = {
       totalTracks: 0,
       totalArtists: 0,
@@ -71,6 +112,18 @@ class Main extends React.Component {
         });
       });
     }
+  }
+
+  play(src) {
+    this.setState({
+      src
+    }, () => {
+      this.audioEl.play()
+    })
+  }
+
+  pause() {
+    this.audioEl.pause()
   }
 
   getAllTracks(requestLimit = this.state.requestLimit, trackOffset = this.state.trackOffset) {
@@ -323,6 +376,10 @@ class Main extends React.Component {
 
             <User id={this.state.userId} avatarUrl={this.state.userImage} />
 
+            <audio src={this.state.src} ref={(ref) => {this.audioEl = ref;}}>
+              Your browser does not support the <code>audio</code> element.
+            </audio>
+
             {this.state.status === null && <Button bsStyle="success" onClick={this.getAllTracks}>Get ALL tracks</Button>}
 
             {this.state.status === 'fetchingTracks' &&
@@ -382,13 +439,21 @@ class Main extends React.Component {
                   <Button onClick={this.clearGenre}><Glyphicon glyph="trash" /> Clear</Button>
                 </ButtonGroup>
               </ButtonToolbar>
-              {this.state.filteredTracks.map((track, i) => {
-                return (
-                  <div>
-                    <SpotifyPlayer uri={track.uri} height={100} key={i} />
-                  </div>
-                )
-              })}
+              <MusicPlayer tracks={this.state.filteredTracks.map(track => {
+                console.log(track)
+                const album = track.album || {};
+                return {
+                  name: track.name,
+                  artists: track.artists.map(artist => {
+                    return {
+                      name: artist.name
+                    }
+                  }),
+                  url: track.preview_url,
+                  img: (album.images[2] || album.images[1] || album.images[0] || {}).url
+                }
+              })} play={this.play} pause={this.pause} />
+
             </Col>
 
             <Col xs={6} md={6}>
@@ -404,9 +469,19 @@ class Main extends React.Component {
                   }
                 </ButtonGroup>
               </ButtonToolbar>
-              {this.state.recommendations.map((track, i) => {
-                return <SpotifyPlayer uri={track.uri} height={100} key={i} />
-              })}
+              <MusicPlayer tracks={this.state.recommendations.map(track => {
+                const album = track.album || {};
+                return {
+                  name: track.name,
+                  artists: track.artists.map(artist => {
+                    return {
+                      name: artist.name
+                    }
+                  }),
+                  url: track.preview_url,
+                  img: (album.images[2] || album.images[1] || album.images[0] || {}).url
+                }
+              })} play={this.play} pause={this.pause} />
             </Col>
           </Row>
         }
